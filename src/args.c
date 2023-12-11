@@ -1,6 +1,5 @@
 #include "args.h"
 
-#include <stdnoreturn.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <stddef.h>
@@ -16,32 +15,35 @@ static int opts_callback(
 	void *data, const char *arg,
 	int key, struct fuse_args *outargs
 ) {
-	(void) data;
 	(void) key;
-	(void) arg;
-	for(int i=0; ; i++) {
-		char *tmp = outargs->argv[i];
-		if(tmp == NULL) break;
-		printf("%s ", tmp);
+	struct args_results_t *results = (struct args_results_t *) data;
+	if(outargs->argc == 1) {
+		if(strcmp(arg, "make") == 0) results->command = MAKE;
+		else if(strcmp(arg, "driver") == 0) results->command = DRIVER;
+		else return 1;
+		return 0; 
 	}
-	puts(arg);
 	return 1;
 }
 
 static void atexit_free(struct args_results_t *results) {
 	static struct args_results_t saved;
-	if(results != NULL) saved = *results;
-	else fuse_opt_free_args(&saved.leftovers);
+	if(results != NULL) {
+		saved = *results;
+		return;
+	}
+	fuse_opt_free_args(&saved.leftovers);
+	if(saved.mewhen != NULL) free(saved.mewhen);
 }
 
 static void atexit_callback(void) { atexit_free(NULL); }
 
-static noreturn void print_help(const char *exe_name) {
+noreturn void print_help(const char *exe_name) {
 	fprintf(stderr,
 		"Useage:\n"
-		"%s make [options] <normal_file> <sectors>\n"
-		"%s make [options] <device_file>\n"
-		"%s driver [options] <device_file>\n",
+		"\t%s make [options] <normal_file> <sectors>\n"
+		"\t%s make [options] <device_file>\n"
+		"\t%s driver [options] <device_file>\n",
 	exe_name, exe_name, exe_name);
 	exit(EXIT_FAILURE);
 }
@@ -58,8 +60,7 @@ struct args_results_t process_arguments(int argc, char **argv) {
 	memset(&results, 0, sizeof(struct args_results_t));
 	results.leftovers = (struct fuse_args) FUSE_ARGS_INIT(argc, argv);
 	fuse_opt_parse(&results.leftovers, &results, opts_schema, opts_callback);
-	
-	results.leftovers.argv[0][0] = '\0';
+
 	atexit_free(&results);
 	atexit(atexit_callback);
 	return results;

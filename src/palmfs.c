@@ -1,13 +1,16 @@
 #define _GNU_SOURCE
-#define FUSE_USE_VERSION 31
 
-#include <fuse3/fuse.h>
 #include <stdio.h>
 
 #include "args.h"
+#include "mkfs.h"
+#include "driver.h"
 
-int main(int argc, char **argv) {
+/* noreturn */ int main(int argc, char **argv) {
 	struct args_results_t results = process_arguments(argc, argv);
-	if(results.mewhen != NULL) puts(results.mewhen);
-	return fuse_main(results.leftovers.argc, results.leftovers.argv, NULL, NULL);
+	switch(results.command) {
+		case ERR: print_help(argv[0]);
+		case MAKE: do_mkfs(&results);
+		case DRIVER: do_driver(&results);
+	}
 }
